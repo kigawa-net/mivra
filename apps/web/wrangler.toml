@@ -1,0 +1,69 @@
+name = "mivra-web"
+main = "src/index.ts"
+compatibility_date = "2026-10-30"
+
+[observability]
+enabled = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mivra-db"
+database_id = "local-mivra-db"
+
+[[r2_buckets]]
+binding = "MAIL_STORAGE"
+bucket_name = "mivra-mail-data"
+
+[[queues.producers]]
+binding = "SEND_QUEUE"
+queue = "mivra-send-queue"
+
+[vars]
+ENVIRONMENT = "development"
+KEYCLOAK_ISSUER_URL = "http://localhost:8080/realms/mivra"
+KEYCLOAK_CLIENT_ID = "mivra-web"
+COOKIE_NAME = "mivra_session"
+
+# Staging Environment
+[env.staging]
+name = "mivra-web-staging"
+[env.staging.vars]
+ENVIRONMENT = "staging"
+KEYCLOAK_ISSUER_URL = "https://auth.staging.mivra.net/realms/mivra"
+KEYCLOAK_CLIENT_ID = "mivra-web"
+COOKIE_NAME = "mivra_session_staging"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "mivra-db-staging"
+database_id = "staging-d1-placeholder"
+
+[[env.staging.r2_buckets]]
+binding = "MAIL_STORAGE"
+bucket_name = "mivra-mail-data-staging"
+
+[[env.staging.queues.producers]]
+binding = "SEND_QUEUE"
+queue = "mivra-send-queue-staging"
+
+# Production Environment
+[env.production]
+name = "mivra-web-production"
+[env.production.vars]
+ENVIRONMENT = "production"
+KEYCLOAK_ISSUER_URL = "https://auth.mivra.net/realms/mivra"
+KEYCLOAK_CLIENT_ID = "mivra-web"
+COOKIE_NAME = "mivra_session"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "mivra-db-production"
+database_id = "prod-d1-placeholder"
+
+[[env.production.r2_buckets]]
+binding = "MAIL_STORAGE"
+bucket_name = "mivra-mail-data-prod"
+
+[[env.production.queues.producers]]
+binding = "SEND_QUEUE"
+queue = "mivra-send-queue-prod"

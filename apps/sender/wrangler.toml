@@ -1,0 +1,69 @@
+name = "mivra-sender"
+main = "src/index.ts"
+compatibility_date = "2026-10-30"
+
+[observability]
+enabled = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mivra-db"
+database_id = "local-mivra-db"
+
+[[r2_buckets]]
+binding = "MAIL_STORAGE"
+bucket_name = "mivra-mail-data"
+
+[[queues.consumers]]
+queue = "mivra-send-queue"
+max_batch_size = 10
+max_batch_timeout = 5
+
+[vars]
+ENVIRONMENT = "development"
+AWS_REGION = "us-east-1"
+SES_CONFIGURATION_SET = "mivra-default"
+
+# Staging Environment
+[env.staging]
+name = "mivra-sender-staging"
+[env.staging.vars]
+ENVIRONMENT = "staging"
+AWS_REGION = "us-east-1"
+SES_CONFIGURATION_SET = "mivra-staging"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "mivra-db-staging"
+database_id = "staging-d1-placeholder"
+
+[[env.staging.r2_buckets]]
+binding = "MAIL_STORAGE"
+bucket_name = "mivra-mail-data-staging"
+
+[[env.staging.queues.consumers]]
+queue = "mivra-send-queue-staging"
+max_batch_size = 10
+max_batch_timeout = 5
+
+# Production Environment
+[env.production]
+name = "mivra-sender-production"
+[env.production.vars]
+ENVIRONMENT = "production"
+AWS_REGION = "us-east-1"
+SES_CONFIGURATION_SET = "mivra-production"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "mivra-db-production"
+database_id = "prod-d1-placeholder"
+
+[[env.production.r2_buckets]]
+binding = "MAIL_STORAGE"
+bucket_name = "mivra-mail-data-prod"
+
+[[env.production.queues.consumers]]
+queue = "mivra-send-queue-prod"
+max_batch_size = 10
+max_batch_timeout = 5

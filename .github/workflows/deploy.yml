@@ -1,0 +1,59 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  deploy:
+    name: Deploy to Cloudflare
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10.15.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Set environment target
+        id: env
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "target=production" >> $GITHUB_OUTPUT
+            echo "db_name=mivra-db-production" >> $GITHUB_OUTPUT
+          else
+            echo "target=staging" >> $GITHUB_OUTPUT
+            echo "db_name=mivra-db-staging" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Apply D1 database migrations
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          pnpm wrangler d1 migrations apply ${{ steps.env.outputs.db_name }} --remote
+
+      - name: Deploy Workers (${{ steps.env.outputs.target }})
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          ENV_FLAG="--env ${{ steps.env.outputs.target }}"
+          pnpm --filter mivra-web exec wrangler deploy $ENV_FLAG
+          pnpm --filter mivra-receiver exec wrangler deploy $ENV_FLAG
+          pnpm --filter mivra-parser exec wrangler deploy $ENV_FLAG
+          pnpm --filter mivra-sender exec wrangler deploy $ENV_FLAG
