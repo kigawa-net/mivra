@@ -9,6 +9,7 @@ enabled = true
 binding = "DB"
 database_name = "mivra-db"
 database_id = "local-mivra-db"
+migrations_dir = "../../migrations"
 
 [[r2_buckets]]
 binding = "MAIL_STORAGE"
@@ -37,6 +38,7 @@ COOKIE_NAME = "mivra_session_staging"
 binding = "DB"
 database_name = "mivra-db-staging"
 database_id = "staging-d1-placeholder"
+migrations_dir = "../../migrations"
 
 [[env.staging.r2_buckets]]
 binding = "MAIL_STORAGE"
@@ -59,6 +61,7 @@ COOKIE_NAME = "mivra_session"
 binding = "DB"
 database_name = "mivra-db-production"
 database_id = "prod-d1-placeholder"
+migrations_dir = "../../migrations"
 
 [[env.production.r2_buckets]]
 binding = "MAIL_STORAGE"

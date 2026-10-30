@@ -9,6 +9,7 @@ enabled = true
 binding = "DB"
 database_name = "mivra-db"
 database_id = "local-mivra-db"
+migrations_dir = "../../migrations"
 
 [[r2_buckets]]
 binding = "MAIL_STORAGE"
