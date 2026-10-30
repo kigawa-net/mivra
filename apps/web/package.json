@@ -1,0 +1,21 @@
+{
+  "name": "mivra-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "dependencies": {
+    "@mivra/api": "workspace:*",
+    "@mivra/auth": "workspace:*",
+    "@mivra/database": "workspace:*",
+    "@mivra/domain": "workspace:*",
+    "@mivra/storage": "workspace:*"
+  },
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -b",
+    "test": "vitest run"
+  }
+}
