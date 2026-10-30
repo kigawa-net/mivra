@@ -5,11 +5,16 @@ on:
     branches:
       - main
       - develop
+  workflow_dispatch:
 
 jobs:
   deploy:
     name: Deploy to Cloudflare
     runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'workflow_dispatch' && 'production' || 'staging' }}
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
       - name: Checkout repository
@@ -32,7 +37,7 @@ jobs:
       - name: Set environment target
         id: env
         run: |
-          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "target=production" >> $GITHUB_OUTPUT
             echo "db_name=mivra-db-production" >> $GITHUB_OUTPUT
           else
@@ -40,17 +45,49 @@ jobs:
             echo "db_name=mivra-db-staging" >> $GITHUB_OUTPUT
           fi
 
+      - name: Authenticate to OpenBao and load Cloudflare credentials
+        id: openbao
+        env:
+          OPENBAO_ADDR: ${{ vars.OPENBAO_ADDR }}
+          OPENBAO_JWT_AUDIENCE: ${{ vars.OPENBAO_JWT_AUDIENCE }}
+          OPENBAO_AUTH_PATH: ${{ vars.OPENBAO_AUTH_PATH || 'jwt' }}
+          OPENBAO_ROLE: ${{ vars.OPENBAO_ROLE }}
+          OPENBAO_SECRET_PATH: ${{ vars.OPENBAO_SECRET_PATH }}
+          OPENBAO_SECRET_KEY: ${{ vars.OPENBAO_SECRET_KEY || 'api_token' }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          : "${OPENBAO_ADDR:?Set the OPENBAO_ADDR repository variable}"
+          : "${OPENBAO_JWT_AUDIENCE:?Set the OPENBAO_JWT_AUDIENCE repository variable}"
+          : "${OPENBAO_ROLE:?Set the OPENBAO_ROLE repository variable}"
+          : "${OPENBAO_SECRET_PATH:?Set the OPENBAO_SECRET_PATH repository variable}"
+          : "${CLOUDFLARE_ACCOUNT_ID:?Set the CLOUDFLARE_ACCOUNT_ID repository variable}"
+
+          oidc_token="$(curl --fail --silent --show-error \
+            -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OPENBAO_JWT_AUDIENCE}" | jq -er '.value')"
+          login="$(jq -n --arg role "$OPENBAO_ROLE" --arg jwt "$oidc_token" '{role:$role,jwt:$jwt}')"
+          bao_token="$(curl --fail --silent --show-error \
+            -H 'Content-Type: application/json' \
+            -d "$login" \
+            "${OPENBAO_ADDR%/}/v1/auth/${OPENBAO_AUTH_PATH}/login" | jq -er '.auth.client_token')"
+          secret="$(curl --fail --silent --show-error \
+            -H "X-Vault-Token: ${bao_token}" \
+            "${OPENBAO_ADDR%/}/v1/${OPENBAO_SECRET_PATH}" | jq -er --arg key "$OPENBAO_SECRET_KEY" '.data.data[$key] // .data[$key]')"
+          echo "::add-mask::${secret}"
+          echo "cloudflare_api_token=${secret}" >> "$GITHUB_OUTPUT"
+
       - name: Apply D1 database migrations
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ steps.openbao.outputs.cloudflare_api_token }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           pnpm wrangler d1 migrations apply DB --remote --config apps/web/wrangler.toml --env ${{ steps.env.outputs.target }}
 
       - name: Deploy Workers (${{ steps.env.outputs.target }})
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ steps.openbao.outputs.cloudflare_api_token }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           ENV_FLAG="--env ${{ steps.env.outputs.target }}"
           pnpm --filter mivra-web exec wrangler deploy $ENV_FLAG
